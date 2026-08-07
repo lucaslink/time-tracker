@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { clients, projects, type Client, type Project } from '$lib/store';
+	import { clients, projects, confirmModal, type Client, type Project } from '$lib/store';
 
 	let newClientName = $state('');
 	
@@ -44,13 +44,24 @@
 	}
 
 	function deleteClient(id: string) {
-		$clients = $clients.filter(c => c.id !== id);
-		// Cascade delete projects
-		$projects = $projects.filter(p => p.clientId !== id);
+		$confirmModal = {
+			isOpen: true,
+			message: 'Are you sure you want to delete this client? All associated projects will also be deleted. This cannot be undone.',
+			onConfirm: () => {
+				$clients = $clients.filter(c => c.id !== id);
+				$projects = $projects.filter(p => p.clientId !== id);
+			}
+		};
 	}
 
 	function deleteProject(id: string) {
-		$projects = $projects.filter(p => p.id !== id);
+		$confirmModal = {
+			isOpen: true,
+			message: 'Are you sure you want to delete this project? This cannot be undone.',
+			onConfirm: () => {
+				$projects = $projects.filter(p => p.id !== id);
+			}
+		};
 	}
 
 	function startEditProject(project: Project) {

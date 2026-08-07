@@ -71,7 +71,7 @@
 					required
 				/>
 			</div>
-			<div class="w-full md:w-28">
+			<div class="w-full md:w-36">
 				<label for="manualStart" class="block text-xs text-[#858585] mb-1">Start Time</label>
 				<input 
 					id="manualStart" 
@@ -81,7 +81,7 @@
 					required
 				/>
 			</div>
-			<div class="w-full md:w-28">
+			<div class="w-full md:w-36">
 				<label for="manualEnd" class="block text-xs text-[#858585] mb-1">End Time</label>
 				<input 
 					id="manualEnd" 

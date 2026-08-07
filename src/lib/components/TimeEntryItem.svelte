@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { timeEntries, projects, clients } from '$lib/store';
+	import { timeEntries, projects, clients, lastDeletedEntry, confirmModal } from '$lib/store';
 	
 	let { entry } = $props<{ entry: any }>();
 	
@@ -45,7 +45,7 @@
 		
 		const newStartTime = start.getTime();
 		const newEndTime = end ? end.getTime() : null;
-		const totalMs = newEndTime ? (newEndTime - newStartTime) : entry.duration; // keep original duration if running? Actually if it's running, endTime is null, duration is calculated live.
+		const totalMs = newEndTime ? (newEndTime - newStartTime) : entry.duration;
 		
 		$timeEntries = $timeEntries.map(e => {
 			if (e.id === entry.id) {
@@ -69,7 +69,23 @@
 	}
 
 	function deleteEntry() {
-		$timeEntries = $timeEntries.filter(e => e.id !== entry.id);
+		$confirmModal = {
+			isOpen: true,
+			message: 'Are you sure you want to delete this time entry?',
+			onConfirm: () => {
+				const deleted = entry;
+				$timeEntries = $timeEntries.filter(e => e.id !== entry.id);
+				
+				$lastDeletedEntry = deleted;
+				
+				// Auto-dismiss the undo toast after 10 seconds
+				setTimeout(() => {
+					if ($lastDeletedEntry?.id === deleted.id) {
+						$lastDeletedEntry = null;
+					}
+				}, 10000);
+			}
+		};
 	}
 
 	function formatDuration(ms: number) {
@@ -115,11 +131,11 @@
 					<label for="date-{entry.id}" class="block text-xs text-[#858585] mb-1">Date</label>
 					<input id="date-{entry.id}" type="date" bind:value={editDate} class="bg-[#1e1e1e] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md w-full focus:border-[#007acc] focus:outline-none" />
 				</div>
-				<div class="w-full md:w-28">
+				<div class="w-full md:w-36">
 					<label for="start-{entry.id}" class="block text-xs text-[#858585] mb-1">Start Time</label>
 					<input id="start-{entry.id}" type="time" bind:value={editStartTimeStr} class="bg-[#1e1e1e] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md w-full focus:border-[#007acc] focus:outline-none" required />
 				</div>
-				<div class="w-full md:w-28">
+				<div class="w-full md:w-36">
 					<label for="end-{entry.id}" class="block text-xs text-[#858585] mb-1">End Time</label>
 					<input id="end-{entry.id}" type="time" bind:value={editEndTimeStr} class="bg-[#1e1e1e] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md w-full focus:border-[#007acc] focus:outline-none" disabled={!entry.endTime} />
 				</div>
