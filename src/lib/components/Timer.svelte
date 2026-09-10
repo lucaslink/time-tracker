@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { activeTimer, projects, timeEntries } from '$lib/store';
+	import { activeTimer, projects, timeEntries, clients } from '$lib/store';
 	import { onMount, onDestroy } from 'svelte';
 
 	let elapsedSeconds = $state(0);
@@ -64,8 +64,11 @@
 			class="bg-[#252526] border border-[#3c3c3c] rounded-lg text-[#cccccc] px-3 py-2 text-sm focus:outline-none focus:border-[#007acc] w-full md:w-64 disabled:opacity-50"
 		>
 			<option value={null} disabled>Select Project...</option>
-			{#each $projects as project}
-				<option value={project.id}>{project.name}</option>
+			{#each $projects.filter(p => !p.isArchived || p.id === $activeTimer.projectId) as project}
+				{@const client = $clients.find(c => c.id === project.clientId)}
+				<option value={project.id}>
+					{client ? `${client.name} - ` : ''}{project.name}
+				</option>
 			{/each}
 		</select>
 		

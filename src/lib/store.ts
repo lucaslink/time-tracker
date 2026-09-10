@@ -25,7 +25,7 @@ function createLocalStore<T>(key: string, startValue: T) {
 }
 
 export type Client = { id: string, name: string, createdAt: number };
-export type Project = { id: string, clientId: string, name: string, colorCode: string, createdAt: number };
+export type Project = { id: string, clientId: string, name: string, colorCode: string, isArchived?: boolean, createdAt: number };
 export type TimeEntry = { id: string, projectId: string, startTime: number, endTime: number | null, duration: number, description: string };
 export type ActiveTimer = { projectId: string | null, startTime: number | null, description: string };
 

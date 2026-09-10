@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { projects, timeEntries } from '$lib/store';
+	import { projects, timeEntries, clients } from '$lib/store';
 
 	let projectId = $state('');
 	let date = $state(new Date().toISOString().split('T')[0]);
@@ -56,8 +56,11 @@
 					required
 				>
 					<option value="" disabled>Select Project...</option>
-					{#each $projects as project}
-						<option value={project.id}>{project.name}</option>
+					{#each $projects.filter(p => !p.isArchived) as project}
+						{@const client = $clients.find(c => c.id === project.clientId)}
+						<option value={project.id}>
+							{client ? `${client.name} - ` : ''}{project.name}
+						</option>
 					{/each}
 				</select>
 			</div>

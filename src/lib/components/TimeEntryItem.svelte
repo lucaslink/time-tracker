@@ -122,7 +122,7 @@
 				<div class="flex-1">
 					<label for="project-{entry.id}" class="block text-xs text-[#858585] mb-1">Project</label>
 					<select id="project-{entry.id}" bind:value={editProjectId} class="bg-[#1e1e1e] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md w-full focus:border-[#007acc] focus:outline-none">
-						{#each $projects as p}
+						{#each $projects.filter(p => !p.isArchived || p.id === entry.projectId) as p}
 							<option value={p.id}>{p.name}</option>
 						{/each}
 					</select>
