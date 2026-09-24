@@ -11,7 +11,29 @@
 	let startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
 
 	// Filters
-	let dateFilter = $state<'all' | 'week' | 'month' | 'year'>('all');
+	let dateFilter = $state<'all' | 'week' | 'month' | 'year' | 'custom'>('all');
+	let customStartDate = $state(new Date(startOfWeek).toISOString().split('T')[0]);
+	let customEndDate = $state(new Date().toISOString().split('T')[0]);
+
+	// Auto-update dates when filter changes
+	$effect(() => {
+		if (dateFilter === 'week') {
+			customStartDate = new Date(startOfWeek).toISOString().split('T')[0];
+			customEndDate = new Date(startOfWeek + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+		} else if (dateFilter === 'month') {
+			customStartDate = new Date(startOfMonth).toISOString().split('T')[0];
+			const endOfMonth = new Date(new Date(startOfMonth).getFullYear(), new Date(startOfMonth).getMonth() + 1, 0);
+			customEndDate = endOfMonth.toISOString().split('T')[0];
+		} else if (dateFilter === 'year') {
+			customStartDate = new Date(startOfYear).toISOString().split('T')[0];
+			const endOfYear = new Date(new Date(startOfYear).getFullYear(), 11, 31);
+			customEndDate = endOfYear.toISOString().split('T')[0];
+		}
+	});
+
+	function handleDateChange() {
+		dateFilter = 'custom';
+	}
 	let groupBy = $state<'none' | 'day-project' | 'project'>('none');
 	let showDescription = $state(true);
 
@@ -71,6 +93,10 @@
 			return `Month of ${new Date(startOfMonth).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
 		} else if (dateFilter === 'year') {
 			return `Year of ${new Date(startOfYear).toLocaleDateString(undefined, { year: 'numeric' })}`;
+		} else if (dateFilter === 'custom') {
+			const start = new Date(`${customStartDate}T00:00:00`);
+			const end = new Date(`${customEndDate}T23:59:59`);
+			return `Period of ${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})} - ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}`;
 		}
 		return 'All Time';
 	});
@@ -81,6 +107,11 @@
 		if (dateFilter === 'week') filtered = filtered.filter(e => e.startTime >= startOfWeek);
 		if (dateFilter === 'month') filtered = filtered.filter(e => e.startTime >= startOfMonth);
 		if (dateFilter === 'year') filtered = filtered.filter(e => e.startTime >= startOfYear);
+		if (dateFilter === 'custom') {
+			const startMs = new Date(`${customStartDate}T00:00:00`).getTime();
+			const endMs = new Date(`${customEndDate}T23:59:59.999`).getTime();
+			filtered = filtered.filter(e => e.startTime >= startMs && e.startTime <= endMs);
+		}
 
 		// Sort filtered first (oldest to newest) to maintain stable description order
 		filtered = [...filtered].sort((a, b) => a.startTime - b.startTime);
@@ -331,12 +362,21 @@
 			<div class="flex flex-wrap gap-3">
 				<div>
 					<label for="dateFilter" class="block text-xs text-[#858585] mb-1">Date Range</label>
-					<select id="dateFilter" bind:value={dateFilter} class="bg-[#252526] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md focus:outline-none focus:border-[#007acc] w-full md:w-auto">
-						<option value="all">All Time</option>
-						<option value="week">This Week</option>
-						<option value="month">This Month</option>
-						<option value="year">This Year</option>
-					</select>
+					<div class="flex items-center gap-2">
+						<select id="dateFilter" bind:value={dateFilter} class="bg-[#252526] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md focus:outline-none focus:border-[#007acc] w-full md:w-auto">
+							<option value="all">All Time</option>
+							<option value="week">This Week</option>
+							<option value="month">This Month</option>
+							<option value="year">This Year</option>
+							<option value="custom">Custom Range</option>
+						</select>
+						
+						<div class="flex items-center gap-2 ml-2">
+							<input type="date" bind:value={customStartDate} oninput={handleDateChange} class="bg-[#252526] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md focus:outline-none focus:border-[#007acc]" />
+							<span class="text-[#858585] text-xs">to</span>
+							<input type="date" bind:value={customEndDate} oninput={handleDateChange} class="bg-[#252526] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md focus:outline-none focus:border-[#007acc]" />
+						</div>
+					</div>
 				</div>
 				<div>
 					<label for="groupBy" class="block text-xs text-[#858585] mb-1">Grouping</label>
