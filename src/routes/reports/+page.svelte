@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { timeEntries, projects, clients } from '$lib/store';
+	import { timeEntries, projects, clients, globalSettings } from '$lib/store';
 	import { exportToCSV, type ExportRow } from '$lib/utils';
 	
 	let now = new Date();
@@ -53,6 +53,40 @@
 		});
 		
 		return Array.from(stats.values()).filter(s => s.duration > 0).sort((a, b) => b.duration - a.duration);
+	});
+
+	let showRetainerSettings = $state(false);
+
+	let retainerTarget = $derived(() => {
+		if ($globalSettings.retainerPeriod === 'none') return null;
+		
+		const hours = $globalSettings.retainerHours;
+		
+		if (dateFilter === 'custom') {
+			const start = new Date(`${customStartDate}T00:00:00`);
+			const end = new Date(`${customEndDate}T23:59:59`);
+			const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+			
+			// Based on user's contract: 1 month = 4 weeks = 28 days
+			const daily = $globalSettings.retainerPeriod === 'weekly' ? hours / 7 : hours / 28;
+			return daily * days;
+		}
+		
+		if (dateFilter === 'week') {
+			return $globalSettings.retainerPeriod === 'weekly' ? hours : hours / 4;
+		} else if (dateFilter === 'month') {
+			return $globalSettings.retainerPeriod === 'monthly' ? hours : hours * 4;
+		} else if (dateFilter === 'year') {
+			return $globalSettings.retainerPeriod === 'monthly' ? hours * 12 : hours * 52;
+		}
+		
+		return null;
+	});
+
+	let retainerBalance = $derived(() => {
+		const target = retainerTarget();
+		if (target === null) return null;
+		return parseFloat(totalExportHours()) - target;
 	});
 
 	function formatHours(ms: number) {
@@ -297,6 +331,12 @@
 				</svg>
 				CSV Export
 			</button>
+			<button onclick={() => showRetainerSettings = !showRetainerSettings} class="bg-[#252526] border border-[#3c3c3c] text-[#cccccc] hover:bg-[#007acc] hover:text-white hover:border-[#007acc] px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+				</svg>
+				Retainer
+			</button>
 			<button onclick={handleBackupJSON} class="bg-[#252526] border border-[#3c3c3c] text-[#cccccc] hover:bg-[#007acc] hover:text-white hover:border-[#007acc] px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2">
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
 					<path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -313,7 +353,28 @@
 		</div>
 	</div>
 
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+	{#if showRetainerSettings}
+		<div class="bg-[#1e1e1e] border border-[#2b2d31] rounded-xl p-5 mb-6">
+			<h3 class="text-sm font-semibold uppercase tracking-wider text-[#cccccc] mb-4">Global Retainer Settings</h3>
+			<p class="text-xs text-[#858585] mb-4">Set a target to easily track if you are over or under your contracted hours.</p>
+			<div class="flex flex-wrap gap-4 items-end">
+				<div>
+					<label for="retainerHours" class="block text-xs text-[#858585] mb-1">Target Hours</label>
+					<input id="retainerHours" type="number" min="0" step="0.5" bind:value={$globalSettings.retainerHours} class="w-32 bg-[#252526] border border-[#3c3c3c] rounded-lg text-[#cccccc] px-3 py-2 text-sm focus:outline-none focus:border-[#007acc]" />
+				</div>
+				<div>
+					<label for="retainerPeriod" class="block text-xs text-[#858585] mb-1">Period</label>
+					<select id="retainerPeriod" bind:value={$globalSettings.retainerPeriod} class="w-40 bg-[#252526] border border-[#3c3c3c] rounded-lg text-[#cccccc] px-3 py-2 text-sm focus:outline-none focus:border-[#007acc]">
+						<option value="none">Disabled</option>
+						<option value="weekly">Weekly</option>
+						<option value="monthly">Monthly</option>
+					</select>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
 		<div class="bg-[#1e1e1e] border border-[#2b2d31] rounded-xl p-5">
 			<h3 class="text-xs font-semibold uppercase tracking-wider text-[#858585] mb-2">Today</h3>
 			<div class="text-3xl font-light text-[#cccccc] tracking-tight">{formatHours(dailyTotal)}<span class="text-sm text-[#858585] font-normal ml-1">hrs</span></div>
@@ -326,31 +387,50 @@
 			<h3 class="text-xs font-semibold uppercase tracking-wider text-[#858585] mb-2">This Month</h3>
 			<div class="text-3xl font-light text-[#cccccc] tracking-tight">{formatHours(monthlyTotal)}<span class="text-sm text-[#858585] font-normal ml-1">hrs</span></div>
 		</div>
-	</div>
-
-	<div>
-		<h2 class="text-sm font-semibold uppercase tracking-wider text-[#cccccc] mb-4">Time by Project</h2>
 		
-		{#if projectStats().length === 0}
-			<div class="bg-[#1e1e1e] border border-[#2b2d31] rounded-xl p-8 text-center text-[#858585]">
-				No time recorded yet.
-			</div>
-		{:else}
-			<div class="bg-[#1e1e1e] border border-[#2b2d31] rounded-xl p-5 space-y-5">
-				{#each projectStats() as stat}
-					<div>
-						<div class="flex justify-between items-end mb-1">
-							<div class="flex items-center gap-2">
-								<div class="w-2.5 h-2.5 rounded-full" style="background-color: {stat.color};"></div>
-								<span class="text-sm text-[#cccccc]">{stat.name}</span>
-							</div>
-							<span class="text-[#858585] font-mono text-xs">{formatHours(stat.duration)} hrs</span>
-						</div>
-						<div class="h-1.5 w-full bg-[#252526] overflow-hidden">
-							<div class="h-full" style="width: {Math.min((stat.duration / (weeklyTotal || 1)) * 100, 100)}%; background-color: {stat.color};"></div>
+		{#if $globalSettings.retainerPeriod !== 'none'}
+			<div class="bg-[#1e1e1e] border border-[#2b2d31] rounded-xl p-5 relative overflow-hidden group cursor-help">
+				<h3 class="text-xs font-semibold uppercase tracking-wider text-[#858585] mb-2">
+					Retainer Balance
+				</h3>
+				
+				{#if retainerTarget() === null}
+					<div class="text-sm text-[#858585] mt-3">Select a Date Range below.</div>
+				{:else}
+					<div class="flex items-end gap-2">
+						<div class="text-3xl font-light tracking-tight {retainerBalance()! > 0 ? 'text-[#f48771]' : (retainerBalance()! === 0 ? 'text-[#cccccc]' : 'text-[#007acc]')}">
+							{retainerBalance()! > 0 ? '+' : ''}{retainerBalance()!.toFixed(1)}<span class="text-sm font-normal ml-1">hrs</span>
 						</div>
 					</div>
-				{/each}
+					<div class="text-xs mt-1 text-[#858585]">
+						Target: {retainerTarget()?.toFixed(1)} hrs 
+						{#if dateFilter === 'custom'}
+							<span class="opacity-50">(pro-rated for custom range)</span>
+						{/if}
+					</div>
+					
+					<!-- Progress Bar -->
+					<div class="h-1.5 w-full bg-[#252526] mt-3 overflow-hidden rounded-full">
+						<div class="h-full rounded-full transition-all duration-500 {retainerBalance()! > 0 ? 'bg-[#f48771]' : 'bg-[#007acc]'}" 
+							 style="width: {Math.min((parseFloat(totalExportHours()) / retainerTarget()!) * 100, 100)}%;">
+						</div>
+					</div>
+				{/if}
+				
+				<div class="absolute inset-0 bg-[#252526] p-5 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center text-center">
+					<p class="text-xs text-[#cccccc] font-medium mb-1">
+						{#if retainerTarget() === null}
+							N/A
+						{:else if retainerBalance()! > 0}
+							Billable Overage
+						{:else if retainerBalance()! === 0}
+							Target Met Perfectly
+						{:else}
+							Owed to Client
+						{/if}
+					</p>
+					<p class="text-[10px] text-[#858585]">Based on the "{dateFilter}" filter below.</p>
+				</div>
 			</div>
 		{/if}
 	</div>
@@ -453,3 +533,31 @@
 		</div>
 	</div>
 </div>
+
+	<div>
+		<h2 class="text-sm font-semibold uppercase tracking-wider text-[#cccccc] mb-4">Time by Project</h2>
+		
+		{#if projectStats().length === 0}
+			<div class="bg-[#1e1e1e] border border-[#2b2d31] rounded-xl p-8 text-center text-[#858585]">
+				No time recorded yet.
+			</div>
+		{:else}
+			<div class="bg-[#1e1e1e] border border-[#2b2d31] rounded-xl p-5 space-y-5">
+				{#each projectStats() as stat}
+					<div>
+						<div class="flex justify-between items-end mb-1">
+							<div class="flex items-center gap-2">
+								<div class="w-2.5 h-2.5 rounded-full" style="background-color: {stat.color};"></div>
+								<span class="text-sm text-[#cccccc]">{stat.name}</span>
+							</div>
+							<span class="text-[#858585] font-mono text-xs">{formatHours(stat.duration)} hrs</span>
+						</div>
+						<div class="h-1.5 w-full bg-[#252526] overflow-hidden">
+							<div class="h-full" style="width: {Math.min((stat.duration / (weeklyTotal || 1)) * 100, 100)}%; background-color: {stat.color};"></div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
+

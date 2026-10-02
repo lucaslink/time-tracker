@@ -28,11 +28,13 @@ export type Client = { id: string, name: string, createdAt: number };
 export type Project = { id: string, clientId: string, name: string, colorCode: string, isArchived?: boolean, createdAt: number };
 export type TimeEntry = { id: string, projectId: string, startTime: number, endTime: number | null, duration: number, description: string };
 export type ActiveTimer = { projectId: string | null, startTime: number | null, description: string };
+export type GlobalSettings = { retainerHours: number, retainerPeriod: 'weekly' | 'monthly' | 'none' };
 
 export const clients = createLocalStore<Client[]>('clients', []);
 export const projects = createLocalStore<Project[]>('projects', []);
 export const timeEntries = createLocalStore<TimeEntry[]>('timeEntries', []);
 export const activeTimer = createLocalStore<ActiveTimer>('activeTimer', { projectId: null, startTime: null, description: '' });
+export const globalSettings = createLocalStore<GlobalSettings>('globalSettings', { retainerHours: 20, retainerPeriod: 'none' });
 
 // Ephemeral store for undoing a deleted entry
 export const lastDeletedEntry = writable<TimeEntry | null>(null);
