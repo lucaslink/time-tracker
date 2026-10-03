@@ -11,7 +11,7 @@
 	let startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
 
 	// Filters
-	let dateFilter = $state<'all' | 'week' | 'month' | 'year' | 'custom'>('all');
+	let dateFilter = $state<'all' | 'week' | 'last_week' | 'month' | 'last_month' | 'year' | 'custom'>('all');
 	let customStartDate = $state(new Date(startOfWeek).toISOString().split('T')[0]);
 	let customEndDate = $state(new Date().toISOString().split('T')[0]);
 
@@ -20,9 +20,28 @@
 		if (dateFilter === 'week') {
 			customStartDate = new Date(startOfWeek).toISOString().split('T')[0];
 			customEndDate = new Date(startOfWeek + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+		} else if (dateFilter === 'last_week') {
+			const start = new Date(startOfWeek - 7 * 24 * 60 * 60 * 1000);
+			customStartDate = start.toISOString().split('T')[0];
+			customEndDate = new Date(startOfWeek - 1000).toISOString().split('T')[0];
+		} else if (dateFilter === 'last_week') {
+			const start = new Date(startOfWeek - 7 * 24 * 60 * 60 * 1000);
+			const endStr = new Date(startOfWeek - 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+			return `Last Week (${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${endStr})`;
 		} else if (dateFilter === 'month') {
+			return `Month of ${new Date(startOfMonth).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
+		} else if (dateFilter === 'last_month') {
+			const d = new Date(startOfMonth);
+			d.setMonth(d.getMonth() - 1);
+			return `Last Month (${d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })})`;
 			customStartDate = new Date(startOfMonth).toISOString().split('T')[0];
 			const endOfMonth = new Date(new Date(startOfMonth).getFullYear(), new Date(startOfMonth).getMonth() + 1, 0);
+			customEndDate = endOfMonth.toISOString().split('T')[0];
+		} else if (dateFilter === 'last_month') {
+			const d = new Date(startOfMonth);
+			d.setMonth(d.getMonth() - 1);
+			customStartDate = d.toISOString().split('T')[0];
+			const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
 			customEndDate = endOfMonth.toISOString().split('T')[0];
 		} else if (dateFilter === 'year') {
 			customStartDate = new Date(startOfYear).toISOString().split('T')[0];
@@ -35,7 +54,7 @@
 		dateFilter = 'custom';
 	}
 	let groupBy = $state<'none' | 'day-project' | 'project'>('none');
-	let showDescription = $state(true);
+
 
 	// Computed stats (all time vs recent)
 	let dailyTotal = $derived($timeEntries.filter(e => e.startTime >= startOfDay).reduce((acc, e) => acc + e.duration, 0));
@@ -72,9 +91,9 @@
 			return daily * days;
 		}
 		
-		if (dateFilter === 'week') {
+		if (dateFilter === 'week' || dateFilter === 'last_week') {
 			return $globalSettings.retainerPeriod === 'weekly' ? hours : hours / 4;
-		} else if (dateFilter === 'month') {
+		} else if (dateFilter === 'month' || dateFilter === 'last_month') {
 			return $globalSettings.retainerPeriod === 'monthly' ? hours : hours * 4;
 		} else if (dateFilter === 'year') {
 			return $globalSettings.retainerPeriod === 'monthly' ? hours * 12 : hours * 52;
@@ -123,7 +142,16 @@
 			const startStr = new Date(startOfWeek).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 			const endStr = endOfWeek.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 			return `Week of ${startStr} - ${endStr}`;
+		} else if (dateFilter === 'last_week') {
+			const start = new Date(startOfWeek - 7 * 24 * 60 * 60 * 1000);
+			const endStr = new Date(startOfWeek - 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+			return `Last Week (${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${endStr})`;
 		} else if (dateFilter === 'month') {
+			return `Month of ${new Date(startOfMonth).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
+		} else if (dateFilter === 'last_month') {
+			const d = new Date(startOfMonth);
+			d.setMonth(d.getMonth() - 1);
+			return `Last Month (${d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })})`;
 			return `Month of ${new Date(startOfMonth).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
 		} else if (dateFilter === 'year') {
 			return `Year of ${new Date(startOfYear).toLocaleDateString(undefined, { year: 'numeric' })}`;
@@ -139,7 +167,16 @@
 		// 1. Filter
 		let filtered = $timeEntries;
 		if (dateFilter === 'week') filtered = filtered.filter(e => e.startTime >= startOfWeek);
+		if (dateFilter === 'last_week') {
+			const start = startOfWeek - 7 * 24 * 60 * 60 * 1000;
+			filtered = filtered.filter(e => e.startTime >= start && e.startTime < startOfWeek);
+		}
 		if (dateFilter === 'month') filtered = filtered.filter(e => e.startTime >= startOfMonth);
+		if (dateFilter === 'last_month') {
+			const d = new Date(startOfMonth);
+			d.setMonth(d.getMonth() - 1);
+			filtered = filtered.filter(e => e.startTime >= d.getTime() && e.startTime < startOfMonth);
+		}
 		if (dateFilter === 'year') filtered = filtered.filter(e => e.startTime >= startOfYear);
 		if (dateFilter === 'custom') {
 			const startMs = new Date(`${customStartDate}T00:00:00`).getTime();
@@ -257,7 +294,7 @@
 			exportRows(), 
 			groupBy === 'none', 
 			groupBy !== 'project', 
-			showDescription, 
+			false, // No description
 			dateFilter,
 			reportPeriodString(),
 			totalExportHours()
@@ -446,7 +483,9 @@
 						<select id="dateFilter" bind:value={dateFilter} class="bg-[#252526] border border-[#3c3c3c] text-[#cccccc] px-3 py-1.5 text-sm rounded-md focus:outline-none focus:border-[#007acc] w-full md:w-auto">
 							<option value="all">All Time</option>
 							<option value="week">This Week</option>
+							<option value="last_week">Last Week</option>
 							<option value="month">This Month</option>
+							<option value="last_month">Last Month</option>
 							<option value="year">This Year</option>
 							<option value="custom">Custom Range</option>
 						</select>
@@ -466,10 +505,7 @@
 						<option value="project">Group by Project</option>
 					</select>
 				</div>
-				<div class="flex items-center gap-2 self-end mb-1">
-					<input type="checkbox" id="showDescription" bind:checked={showDescription} class="w-4 h-4 bg-[#252526] border border-[#3c3c3c] rounded text-[#007acc] focus:ring-[#007acc] focus:ring-offset-0 focus:ring-1 cursor-pointer appearance-none checked:bg-[#007acc] checked:border-[#007acc]" />
-					<label for="showDescription" class="text-xs text-[#cccccc] cursor-pointer select-none">Show Description</label>
-				</div>
+
 			</div>
 		</div>
 		
@@ -491,9 +527,7 @@
 								<th class="p-3 text-xs font-semibold uppercase tracking-wider text-[#858585]">Time</th>
 							{/if}
 							<th class="p-3 text-xs font-semibold uppercase tracking-wider text-[#858585]">Duration</th>
-							{#if showDescription}
-								<th class="p-3 text-xs font-semibold uppercase tracking-wider text-[#858585]">Description</th>
-							{/if}
+
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-[#2b2d31]">
@@ -511,9 +545,7 @@
 									<td class="p-3 whitespace-nowrap text-xs text-[#858585]">{row.timeStr}</td>
 								{/if}
 								<td class="p-3 whitespace-nowrap font-mono">{row.durationStr}</td>
-								{#if showDescription}
-									<td class="p-3 text-xs text-[#858585] truncate max-w-[250px]" title={row.description}>{row.description || '-'}</td>
-								{/if}
+
 							</tr>
 						{/each}
 					</tbody>
@@ -523,9 +555,7 @@
 								Total Hours for {reportPeriodString()}:
 							</td>
 							<td class="p-3 font-mono font-medium text-[#cccccc]">{totalExportHours()}h</td>
-							{#if showDescription}
-								<td></td>
-							{/if}
+
 						</tr>
 					</tfoot>
 				</table>
